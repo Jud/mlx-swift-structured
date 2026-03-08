@@ -25,6 +25,7 @@ public final class GrammarMaskedLogitProcessor: LogitProcessor, @unchecked Senda
     }
     
     public func didSample(token: MLXArray) {
+        guard !grammarMatcher.isTerminated() else { return }
         grammarMatcher.advance(token: token)
     }
 }
