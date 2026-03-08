@@ -89,7 +89,7 @@ public extension GrammarMaskedLogitProcessor {
 //        print("Stop tokens Ids:", stopTokenIds)
 //        print("Grammar:", grammar)
               
-        let grammarMatcher = try XGrammar(vocab: vocab, vocabType: vocabType, stopTokenIds: stopTokenIds, grammar: grammar)
+        let grammarMatcher = try XGrammar(vocab: vocab, vocabType: vocabType, stopTokenIds: stopTokenIds, grammar: grammar, modelVocabSize: configVocabSize)
         let processor = GrammarMaskedLogitProcessor(grammarMatcher: grammarMatcher)
         return processor
     }

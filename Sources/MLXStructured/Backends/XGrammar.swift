@@ -44,18 +44,22 @@ private extension XGrammar {
 }
 
 final class XGrammar {
-            
-    private let vocabSize: Int
+
+    /// Size of the model's logit output (config.vocab_size). Used for mask truncation.
+    private let modelVocabSize: Int
+    /// Full tokenizer vocab size (may be larger than modelVocabSize for models with extended tokens).
+    private let fullVocabSize: Int
     private let bufferSize: Int
     private let bitmap: MLXArray
     private var bitmask: DLTensor
     private let grammarMatcher: UnsafeMutableRawPointer?
-    
+
     init(
         vocab: [String],
         vocabType: Int32 = 0,
         stopTokenIds: [Int32] = [],
-        grammar: Grammar
+        grammar: Grammar,
+        modelVocabSize: Int? = nil
     ) throws {
         let _ = errorHandler // Start capturing errors
         let vocab = vocab.map { strdup($0) }
@@ -122,7 +126,8 @@ final class XGrammar {
             throw XGrammarError.unknown(XGrammar.lastErrorMessage)
         }
         
-        self.vocabSize = vocab.count
+        self.modelVocabSize = modelVocabSize ?? vocab.count
+        self.fullVocabSize = vocab.count
         self.bufferSize = (vocab.count + 31) / 32
         self.bitmap = MLXArray(bitmap).reshaped([256, 8])
         self.bitmask = DLTensor.nextTokenBitmask(bufferSize: bufferSize)
@@ -143,13 +148,13 @@ extension XGrammar: GrammarMatcher {
         guard withUnsafeMutablePointer(to: &bitmask, {
             grammar_matcher_fill_next_token_bitmask(grammarMatcher, $0)
         }) else {
-            return MLXArray.zeros([vocabSize])
+            return MLXArray.zeros([modelVocabSize])
         }
-        
+
         let bytes = bufferSize &<< 2
         let bitmaskData = UnsafeRawBufferPointer(start: bitmask.data, count: bytes)
         let bitmask = MLXArray(bitmaskData, [bytes], type: Int8.self)
-        let mask = bitmap[bitmask].reshaped([bytes * 8])[0..<vocabSize]
+        let mask = bitmap[bitmask].reshaped([bytes * 8])[0..<modelVocabSize]
         return mask
     }
     
