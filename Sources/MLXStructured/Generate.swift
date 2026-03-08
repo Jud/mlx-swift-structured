@@ -24,7 +24,12 @@ public func generate(
     let sampler = parameters.sampler()
     let processor = try await GrammarMaskedLogitProcessor.from(configuration: context.configuration, grammar: grammar)
     let iterator = try TokenIterator(input: input, model: context.model, processor: processor, sampler: sampler)
-    let result = generate(input: input, context: context, iterator: iterator, didGenerate: didGenerate)
+    let result = generate(input: input, context: context, iterator: iterator) { tokens in
+        if processor.grammarMatcher.isTerminated() {
+            return .stop
+        }
+        return didGenerate(tokens)
+    }
     return result
 }
 
@@ -41,7 +46,12 @@ public func generate<Content: Decodable>(
     let sampler = parameters.sampler()
     let processor = try await GrammarMaskedLogitProcessor.from(configuration: context.configuration, grammar: grammar)
     let iterator = try TokenIterator(input: input, model: context.model, processor: processor, sampler: sampler)
-    let result = generate(input: input, context: context, iterator: iterator, didGenerate: didGenerate)
+    let result = generate(input: input, context: context, iterator: iterator) { tokens in
+        if processor.grammarMatcher.isTerminated() {
+            return .stop
+        }
+        return didGenerate(tokens)
+    }
     let content = try JSONDecoder().decode(Content.self, from: Data(result.output.utf8))
     return (result, content)
 }
@@ -60,7 +70,12 @@ public func generate<Content: Generable>(
     let grammar = try Grammar.generable(Content.self, indent: indent)
     let processor = try await GrammarMaskedLogitProcessor.from(configuration: context.configuration, grammar: grammar)
     let iterator = try TokenIterator(input: input, model: context.model, processor: processor, sampler: sampler)
-    let result = generate(input: input, context: context, iterator: iterator, didGenerate: didGenerate)
+    let result = generate(input: input, context: context, iterator: iterator) { tokens in
+        if processor.grammarMatcher.isTerminated() {
+            return .stop
+        }
+        return didGenerate(tokens)
+    }
     let content = try Content(GeneratedContent(json: result.output))
     return (result, content)
 }
