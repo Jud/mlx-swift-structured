@@ -27,7 +27,11 @@ public extension GrammarMaskedLogitProcessor {
             configurations.tokenizerData
         )
         
-        let configVocabSize = modelConfig?.vocabSize.integer() ?? 0
+        // vocab_size may be at the root level or nested under text_config
+        // (multimodal models like Qwen 3.5 use text_config.vocab_size)
+        let configVocabSize = modelConfig?.vocabSize.integer()
+            ?? modelConfig?.textConfig.vocabSize.integer()
+            ?? 0
 
         // Determine the actual max index across both the base vocab and added tokens
         // so the array is large enough for models whose tokenizer extends beyond vocabSize
