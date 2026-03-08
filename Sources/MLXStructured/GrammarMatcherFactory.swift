@@ -27,17 +27,33 @@ public extension GrammarMaskedLogitProcessor {
             configurations.tokenizerData
         )
         
-        let vocabSize = modelConfig?.vocabSize.integer() ?? 0
-        var vocab = Array(repeating: "", count: vocabSize)
-        
+        let configVocabSize = modelConfig?.vocabSize.integer() ?? 0
+
+        // Determine the actual max index across both the base vocab and added tokens
+        // so the array is large enough for models whose tokenizer extends beyond vocabSize
+        // (e.g. Qwen 3.5 has added tokens with indices >= config vocab_size).
+        var maxIndex = configVocabSize - 1
+        for (_, value) in tokenizerData.model.vocab.dictionary(or: [:]) {
+            if let index = value.integer(), index > maxIndex {
+                maxIndex = index
+            }
+        }
+        for value in tokenizerData.addedTokens.array(or: []) {
+            if let index = value.id.integer(), index > maxIndex {
+                maxIndex = index
+            }
+        }
+
+        var vocab = Array(repeating: "", count: maxIndex + 1)
+
         for (key, value) in tokenizerData.model.vocab.dictionary(or: [:]) {
             if let index = value.integer() {
                 vocab[index] = key.string
             }
         }
-        
+
         for value in tokenizerData.addedTokens.array(or: []) {
-            if let index = value.id.integer(), let token = value.content.string(), vocab.indices.contains(index) {
+            if let index = value.id.integer(), let token = value.content.string() {
                 vocab[index] = token
             }
         }
